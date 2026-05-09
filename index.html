@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TSCRIC-LoRa — Smart Irrigation Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0d1117">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════
+       LOGIN SCREEN
+       ═══════════════════════════════════════════════════════ -->
+  <div id="loginScreen" class="login-overlay" style="display:flex">
+    <div class="login-box">
+      <div class="login-logo">
+        <span style="font-size:2.5em">🌾</span>
+        <h2>TSCRIC-LoRa</h2>
+        <p>Smart Irrigation Dashboard</p>
+        <small>Oriental College of Technology, Bhopal</small>
+      </div>
+      <div id="loginError" class="login-error" style="display:none">
+        ❌ Incorrect password. Please try again.
+      </div>
+      <div class="login-field">
+        <label>Dashboard Password</label>
+        <input type="password" id="loginPass" placeholder="Enter password..."
+          onkeydown="if(event.key==='Enter') doLogin()" autocomplete="current-password" />
+      </div>
+      <button class="btn btn-save" style="width:100%;margin-top:12px" onclick="doLogin()">
+        🔐 Login to Dashboard
+      </button>
+      <div class="login-hint">Contact your project administrator for access credentials.</div>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <header class="header" id="mainHeader" style="display:none">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">🌾</span>
+        <div>
+          <h1>TSCRIC-LoRa</h1>
+          <p>Temporal Soil-Crop Resonance Irrigation Controller</p>
+        </div>
+      </div>
+      <div class="header-status">
+        <span class="status-dot" id="connDot"></span>
+        <span id="connStatus">Connecting...</span>
+        <span class="timestamp" id="lastUpdate">--</span>
+        <button class="btn-logout" onclick="doLogout()" title="Logout">🔓 Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT (hidden until logged in) -->
+  <div id="mainContent" style="display:none">
+
+  <!-- ALERT BAR -->
+  <div class="alert-bar" id="alertBar" style="display:none"></div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       CONFIGURATION PANEL
+       ═══════════════════════════════════════════════════════ -->
+  <div class="config-panel">
+    <div class="config-header">
+      <span class="config-icon">⚙️</span>
+      <span class="config-title">Farm Configuration</span>
+      <span class="config-badge" id="configSavedBadge" style="display:none">✓ Saved to Firebase &amp; Device</span>
+    </div>
+
+    <div class="config-grid">
+
+      <!-- CROP -->
+      <div class="config-card">
+        <label class="config-label">🌱 Select Crop</label>
+        <select id="cropSelectMain" class="config-select" onchange="onCropChange(this.value)">
+          <option value="0">🌾 Wheat (Gehun)</option>
+          <option value="1">🌾 Rice (Dhan)</option>
+          <option value="2">🌽 Maize (Makka)</option>
+          <option value="3">🌿 Cotton (Kapas)</option>
+          <option value="4">🫘 Soybean (Soya)</option>
+          <option value="5">🫘 Chickpea (Chana)</option>
+          <option value="6">🌻 Mustard (Sarson)</option>
+          <option value="7">🎋 Sugarcane (Ganna)</option>
+        </select>
+        <div class="config-sub" id="cropStageInfo">Stage: -- &nbsp;|&nbsp; GDD: --</div>
+      </div>
+
+      <!-- PLOT AREA m² -->
+      <div class="config-card">
+        <label class="config-label">📐 Plot Area (m²)</label>
+        <div class="unit-input-wrap">
+          <input
+            type="number" id="plotAreaM2"
+            class="config-input"
+            min="1" max="100000" step="0.5"
+            placeholder="e.g. 6"
+            oninput="onM2Input(this.value)"
+          />
+          <span class="unit-tag">m²</span>
+        </div>
+        <div class="config-sub">Min: 1 m² &nbsp;|&nbsp; Max: 1,00,000 m²</div>
+      </div>
+
+      <!-- PLOT AREA Bigha -->
+      <div class="config-card">
+        <label class="config-label">📐 Plot Area (Bigha)</label>
+        <div class="unit-input-wrap">
+          <input
+            type="number" id="plotAreaBigha"
+            class="config-input"
+            min="0.001" max="75" step="0.001"
+            placeholder="e.g. 0.0045"
+            oninput="onBighaInput(this.value)"
+          />
+          <span class="unit-tag">Bigha</span>
+        </div>
+        <div class="config-sub">1 Bigha (MP) = 1333.33 m²</div>
+      </div>
+
+      <!-- WEATHER LOCATION -->
+      <div class="config-card">
+        <label class="config-label">🌍 Weather Location</label>
+        <select id="weatherLocation" class="config-select" onchange="onWeatherLocationChange(this.value)">
+          <optgroup label="🇮🇳 Madhya Pradesh">
+            <option value="bhopal" selected>Bhopal</option>
+            <option value="indore">Indore</option>
+            <option value="jabalpur">Jabalpur</option>
+            <option value="gwalior">Gwalior</option>
+            <option value="ujjain">Ujjain</option>
+            <option value="sagar">Sagar</option>
+            <option value="rewa">Rewa</option>
+            <option value="satna">Satna</option>
+            <option value="chhindwara">Chhindwara</option>
+            <option value="vidisha">Vidisha</option>
+            <option value="hoshangabad">Hoshangabad</option>
+            <option value="narsinghpur">Narsinghpur</option>
+          </optgroup>
+          <optgroup label="🇮🇳 Other Major Cities">
+            <option value="delhi">New Delhi</option>
+            <option value="mumbai">Mumbai</option>
+            <option value="pune">Pune</option>
+            <option value="nagpur">Nagpur</option>
+            <option value="lucknow">Lucknow</option>
+            <option value="patna">Patna</option>
+            <option value="jaipur">Jaipur</option>
+            <option value="chandigarh">Chandigarh</option>
+            <option value="hyderabad">Hyderabad</option>
+            <option value="bangalore">Bengaluru</option>
+            <option value="ahmedabad">Ahmedabad</option>
+            <option value="kolkata">Kolkata</option>
+            <option value="amritsar">Amritsar</option>
+            <option value="varanasi">Varanasi</option>
+            <option value="agra">Agra</option>
+          </optgroup>
+        </select>
+        <div class="config-sub" id="weatherLocationInfo">📍 Lat: 23.26°N &nbsp;|&nbsp; Lon: 77.41°E</div>
+      </div>
+
+      <!-- BUDGET PREVIEW -->
+      <div class="config-card config-preview">
+        <label class="config-label">💧 Water Budget Preview</label>
+        <div class="preview-row">
+          <span>Crop Delta (Δ)</span>
+          <span class="preview-val" id="prevDelta">-- mm</span>
+        </div>
+        <div class="preview-row">
+          <span>Area</span>
+          <span class="preview-val" id="prevArea">-- m²</span>
+        </div>
+        <div class="preview-row">
+          <span>= Bigha</span>
+          <span class="preview-val" id="prevBigha">--</span>
+        </div>
+        <div class="preview-row">
+          <span>Seasonal Need</span>
+          <span class="preview-val" id="prevNeed">-- L</span>
+        </div>
+      </div>
+
+    </div><!-- /config-grid -->
+
+    <div class="config-save-row">
+      <button class="btn btn-save" onclick="saveConfig()">
+        💾 Save Config to Firebase &amp; Device
+      </button>
+      <span class="config-hint">Saves to Firebase → ESP8266 reads within 15 s → EEPROM persisted</span>
+    </div>
+  </div>
+
+  <!-- CROP BANNER -->
+  <div class="crop-banner">
+    <div class="crop-info">
+      <label>Active Crop</label>
+      <span id="cropName">--</span>
+    </div>
+    <div class="crop-info">
+      <label>Stage</label>
+      <span id="stageName">--</span>
+    </div>
+    <div class="crop-info">
+      <label>GDD</label>
+      <span id="gddVal">--</span><small> °C·day</small>
+    </div>
+    <div class="crop-info">
+      <label>Plot Area</label>
+      <span id="liveArea">--</span>
+    </div>
+    <div class="crop-info">
+      <label>Weather Loc</label>
+      <span id="weatherLocBanner">Bhopal</span>
+    </div>
+    <div class="crop-info">
+      <label>Connection</label>
+      <span id="connMode">--</span>
+    </div>
+  </div>
+
+  <!-- AI SCORE HERO -->
+  <div class="ai-hero">
+    <div class="ai-circle" id="aiCircle">
+      <div class="ai-score-val" id="aiScore">--</div>
+      <div class="ai-label">AI Score</div>
+    </div>
+    <div class="ai-details">
+      <div class="ai-metric">
+        <span class="ai-metric-label">SMV</span>
+        <span class="ai-metric-val" id="smvVal">--</span>
+        <span class="ai-metric-unit">%/hr</span>
+      </div>
+      <div class="ai-metric">
+        <span class="ai-metric-label">SMA</span>
+        <span class="ai-metric-val" id="smaVal">--</span>
+        <span class="ai-metric-unit">%/hr²</span>
+      </div>
+      <div class="ai-metric">
+        <span class="ai-metric-label">TPR</span>
+        <span class="ai-metric-val" id="tprVal">--</span>
+        <span class="ai-metric-unit">cos θ</span>
+      </div>
+      <div class="ai-metric">
+        <span class="ai-metric-label">ETo</span>
+        <span class="ai-metric-val" id="etoVal">--</span>
+        <span class="ai-metric-unit">mm/day</span>
+      </div>
+      <div class="ai-metric">
+        <span class="ai-metric-label">Rain Prob</span>
+        <span class="ai-metric-val" id="rainVal">--</span>
+        <span class="ai-metric-unit">%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SOIL DEPTH PROFILE -->
+  <section class="section">
+    <h2 class="section-title">🌱 Tri-Depth Soil Profile</h2>
+    <div class="depth-grid">
+      <div class="depth-card">
+        <div class="depth-label">Surface (15 cm)</div>
+        <div class="depth-bar-wrap"><div class="depth-bar" id="bar1"></div></div>
+        <div class="depth-val" id="sm1Val">--%</div>
+      </div>
+      <div class="depth-card csmi-card">
+        <div class="depth-label">CSMI (Weighted)</div>
+        <div class="depth-bar-wrap"><div class="depth-bar csmi-bar" id="barCSMI"></div></div>
+        <div class="depth-val csmi-val" id="csmiVal">--%</div>
+      </div>
+      <div class="depth-card">
+        <div class="depth-label">Mid-root (30 cm)</div>
+        <div class="depth-bar-wrap"><div class="depth-bar" id="bar2"></div></div>
+        <div class="depth-val" id="sm2Val">--%</div>
+      </div>
+      <div class="depth-card">
+        <div class="depth-label">Deep root (45 cm)</div>
+        <div class="depth-bar-wrap"><div class="depth-bar" id="bar3"></div></div>
+        <div class="depth-val" id="sm3Val">--%</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ENVIRONMENTAL SENSORS -->
+  <section class="section">
+    <h2 class="section-title">📡 Environmental Sensors (BME280 + DHT11)</h2>
+    <div class="sensor-grid">
+      <div class="sensor-card">
+        <div class="sensor-icon">🌡️</div>
+        <div class="sensor-val" id="tempVal">--</div>
+        <div class="sensor-unit">°C</div>
+        <div class="sensor-label">Temperature</div>
+      </div>
+      <div class="sensor-card">
+        <div class="sensor-icon">💧</div>
+        <div class="sensor-val" id="humVal">--</div>
+        <div class="sensor-unit">%</div>
+        <div class="sensor-label">Humidity</div>
+      </div>
+      <div class="sensor-card">
+        <div class="sensor-icon">🌀</div>
+        <div class="sensor-val" id="presVal">--</div>
+        <div class="sensor-unit">hPa</div>
+        <div class="sensor-label">Pressure (BME280)</div>
+      </div>
+      <div class="sensor-card">
+        <div class="sensor-icon">🚿</div>
+        <div class="sensor-val" id="flowVal">--</div>
+        <div class="sensor-unit">L/min</div>
+        <div class="sensor-label">Flow Rate</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WATER BUDGET -->
+  <section class="section">
+    <h2 class="section-title">💧 Water Budget Accounting</h2>
+    <div class="budget-grid">
+      <div class="budget-card">
+        <div class="budget-label">Total Applied</div>
+        <div class="budget-val" id="appliedVal">-- L</div>
+        <div class="budget-sub">Cumulative season</div>
+      </div>
+      <div class="budget-card">
+        <div class="budget-label">Seasonal Required</div>
+        <div class="budget-val" id="requiredVal">-- L</div>
+        <div class="budget-sub">Δ × Plot Area</div>
+      </div>
+      <div class="budget-card highlight">
+        <div class="budget-label">Balance Remaining</div>
+        <div class="budget-val" id="balanceVal">-- L</div>
+        <div class="budget-sub">Budget left</div>
+      </div>
+      <div class="budget-card">
+        <div class="budget-label">Total Flow (YF-S201)</div>
+        <div class="budget-val" id="totalFlowVal">-- L</div>
+        <div class="budget-sub">Sensor measured</div>
+      </div>
+    </div>
+    <div class="budget-bar-wrap">
+      <div class="budget-progress" id="budgetProgress"></div>
+    </div>
+    <div class="budget-legend" id="budgetPct">-- % of seasonal budget used</div>
+  </section>
+
+  <!-- PUMP CONTROL -->
+  <section class="section">
+    <h2 class="section-title">⚙️ Pump Control</h2>
+    <div class="pump-panel">
+      <div class="pump-status-wrap">
+        <div class="pump-indicator" id="pumpIndicator"></div>
+        <div>
+          <div class="pump-status-text" id="pumpStatusText">--</div>
+          <div class="pump-mode-text"   id="pumpModeText">--</div>
+        </div>
+      </div>
+      <div class="pump-buttons">
+        <button class="btn btn-green"  onclick="sendCmd('pump_on')">💧 Pump ON</button>
+        <button class="btn btn-red"    onclick="sendCmd('pump_off')">🛑 Pump OFF</button>
+        <button class="btn btn-blue"   onclick="sendCmd('auto_on')">🤖 Auto Mode</button>
+        <button class="btn btn-purple" onclick="sendCmd('manual_on')">✋ Manual Mode</button>
+      </div>
+    </div>
+    <div class="fault-banner" id="faultBanner" style="display:none">
+      ⚠️ PIPELINE FAULT DETECTED — Pump automatically stopped
+    </div>
+  </section>
+
+  <!-- IRRIGATION HISTORY -->
+  <section class="section">
+    <h2 class="section-title">📊 Irrigation Event Log</h2>
+    <div class="history-table-wrap">
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th>Time</th><th>CSMI</th><th>AI Score</th>
+            <th>Dose (L)</th><th>Reason</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody">
+          <tr><td colspan="5" style="text-align:center;color:#8b949e">No events yet</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <p>TSCRIC-LoRa v2.1 | Oriental College of Technology, Bhopal | Civil Engineering 2025–2026</p>
+    <p>Dr. Yogesh Iyer Murthy &nbsp;|&nbsp; Aditya Kumar · Akash Khandgre · Akash Kumar · Aman Kumar</p>
+  </footer>
+
+  </div><!-- /mainContent -->
+
+  <script src="app.js"></script>
+</body>
+</html>
