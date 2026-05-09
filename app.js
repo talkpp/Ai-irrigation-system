@@ -8,7 +8,7 @@
 // ============================================================
 // DASHBOARD LOGIN — Password Protection
 // ============================================================
-const DASHBOARD_PASSWORD = "tscric2025";  // Dashboard password
+const DASHBOARD_PASSWORD = "Aman";  // Dashboard password
 
 function doLogin() {
   const passEl = document.getElementById('loginPass');
